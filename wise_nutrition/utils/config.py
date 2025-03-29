@@ -26,6 +26,7 @@ class Config:
         Initialize the configuration manager.
         
         """
+        self._config_cache = {}
         self._openai_api_key = self._get_required_env_var("OPENAI_API_KEY")
         self._weaviate_url = self._get_required_env_var("WEAVIATE_URL")
         self._weaviate_api_key = self._get_required_env_var("WEAVIATE_API_KEY")

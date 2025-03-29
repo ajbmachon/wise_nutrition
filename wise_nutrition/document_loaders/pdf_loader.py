@@ -3,9 +3,10 @@ PDF document loader module.
 """
 from typing import List, Optional
 
-from langchain.document_loaders import PyPDFLoader
+from langchain_community.document_loaders import PyPDFLoader
 from langchain.schema import Document
 from langchain.text_splitter import RecursiveCharacterTextSplitter
+from wise_nutrition.utils.config import Config
 
 
 class NutritionPDFLoader:
@@ -16,7 +17,8 @@ class NutritionPDFLoader:
     def __init__(
         self,
         chunk_size: int = 1000,
-        chunk_overlap: int = 200
+        chunk_overlap: int = 200,
+        config: Config = Config()
     ):
         """
         Initialize the PDF loader.
@@ -25,7 +27,9 @@ class NutritionPDFLoader:
             chunk_size: The size of text chunks to create
             chunk_overlap: The overlap between consecutive chunks
         """
-        pass
+        self._config = config
+        self._chunk_size = chunk_size
+        self._chunk_overlap = chunk_overlap
         
     def load_and_split(self, file_path: str) -> List[Document]:
         """
