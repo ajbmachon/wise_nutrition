@@ -2,10 +2,10 @@
 RAG chain implementation.
 """
 from typing import Dict, Any, Optional, List, Callable
+from wise_nutrition.utils.prompts import NUTRITION_EXPERT_PROMPT
 
 from langchain.chat_models import ChatOpenAI
 from langchain.memory import ConversationBufferMemory
-from langchain.prompts import ChatPromptTemplate
 from langchain.schema import Document, StrOutputParser
 from langchain.schema.runnable import Runnable, RunnablePassthrough
 
