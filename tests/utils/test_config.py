@@ -42,6 +42,10 @@ class TestConfig:
             assert config.google_api_key == "test-key"
             assert config.openai_model_default == "gpt-3.5-turbo"
             assert config.anthropic_model_default == "claude-3.5-sonnet-20240620"
+            assert config.google_model_default == "gemini-2.0-flash-lite"
+            assert config.openai_model_high_performance == "gpt-4o"
+            assert config.anthropic_model_high_performance == "claude-3-5-sonnet-20241022"
+            assert config.google_model_high_performance == "gemini-2.0-flash"
     
     def test_get_method_attribute_lookup(self):
         """Test the get method attribute lookup."""

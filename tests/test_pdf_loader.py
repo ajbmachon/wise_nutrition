@@ -23,13 +23,13 @@ class TestNutritionPDFLoader:
         # Test initialization here
     
     @pytest.mark.asyncio
-    @patch('langchain.document_loaders.PyPDFLoader')
+    @patch('langchain_community.document_loaders.PyPDFLoader')
     async def test_load_and_split(self, mock_pdf_loader):
         """Test loading and splitting a PDF file."""
         # Test load_and_split here
     
     @pytest.mark.asyncio
-    @patch('langchain.document_loaders.PyPDFLoader')
+    @patch('langchain_community.document_loaders.PyPDFLoader')
     async def test_load_multiple_and_split(self, mock_pdf_loader):
         """Test loading and splitting multiple PDF files."""
         # Test load_multiple_and_split here 

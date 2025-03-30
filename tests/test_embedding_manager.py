@@ -41,14 +41,14 @@ class TestEmbeddingManager:
     
     @pytest.mark.asyncio
     @patch('weaviate.Client')
-    @patch('langchain.embeddings.openai.OpenAIEmbeddings')
+    @patch('langchain_openai.OpenAIEmbeddings')
     async def test_add_documents(self, mock_embeddings, mock_weaviate_client):
         """Test adding documents to the Weaviate collection."""
         # Test add_documents here
     
     @pytest.mark.asyncio
     @patch('weaviate.Client')
-    @patch('langchain.vectorstores.Weaviate')
+    @patch('langchain_community.vectorstores.Weaviate')
     async def test_get_retriever(self, mock_weaviate_store, mock_weaviate_client):
         """Test getting a retriever from the embedding manager."""
         # Test get_retriever here 

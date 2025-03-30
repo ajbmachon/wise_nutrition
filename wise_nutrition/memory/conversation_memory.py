@@ -1,71 +1,93 @@
 """
-Conversation memory management.
+Conversation memory management using LangGraph.
 """
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Tuple
+from uuid import UUID, uuid4
 
-from langchain.memory import ConversationBufferMemory
-from langchain.schema import BaseMessage
+from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
+from langgraph.checkpoint.memory import MemorySaver
 
 
 class ConversationMemoryManager:
     """
-    Manage conversation memory for the nutrition chatbot.
+    Manage conversation memory for the nutrition chatbot using LangGraph.
     """
     
     def __init__(
         self,
-        memory_key: str = "chat_history",
-        return_messages: bool = True,
-        output_key: str = "answer"
+        memory_saver: Optional[MemorySaver] = None
     ):
         """
         Initialize the conversation memory manager.
         
         Args:
-            memory_key: Key to store the memory under
-            return_messages: Whether to return messages or strings
-            output_key: Key for storing outputs
+            memory_saver: LangGraph memory saver (if None, a new one will be created)
         """
-        pass
-    
-    def get_memory(self) -> ConversationBufferMemory:
+        # TODO: Check docs and code how to manage memory propperly 
+        # TODO: https://langchain-ai.github.io/langgraph/how-tos/memory/manage-conversation-history/ https://langchain-ai.github.io/langgraph/concepts/memory/ 
+        self._memory_saver = memory_saver or MemorySaver()
+        
+    def get_memory_saver(self) -> MemorySaver:
         """
-        Get the conversation memory.
+        Get the memory saver.
         
         Returns:
-            Conversation memory instance
+            LangGraph memory saver instance
         """
-        pass
+        return self._memory_saver
     
-    def add_user_message(self, message: str) -> None:
+    def add_user_message(self, message: str, thread_id: Optional[str] = None) -> str:
         """
         Add a user message to the memory.
         
         Args:
             message: User message string
+            thread_id: Optional thread ID for conversation tracking
+            
+        Returns:
+            Thread ID
         """
         pass
     
-    def add_ai_message(self, message: str) -> None:
+    def add_ai_message(self, message: str, thread_id: Optional[str] = None) -> str:
         """
         Add an AI message to the memory.
         
         Args:
             message: AI message string
+            thread_id: Optional thread ID for conversation tracking
+            
+        Returns:
+            Thread ID
         """
         pass
     
-    def get_chat_history(self) -> List[BaseMessage]:
+    def get_chat_history(self, thread_id: str) -> List[BaseMessage]:
         """
-        Get the chat history.
+        Get the chat history for a thread.
         
+        Args:
+            thread_id: Thread ID
+            
         Returns:
             List of chat messages
         """
         pass
     
-    def clear(self) -> None:
+    def clear(self, thread_id: str) -> None:
         """
-        Clear the conversation memory.
+        Clear the conversation memory for a thread.
+        
+        Args:
+            thread_id: Thread ID
         """
-        pass 
+        pass
+    
+    def generate_thread_id(self) -> str:
+        """
+        Generate a new thread ID.
+        
+        Returns:
+            Thread ID string
+        """
+        return str(uuid4()) 

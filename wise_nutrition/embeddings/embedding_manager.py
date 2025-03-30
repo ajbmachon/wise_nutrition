@@ -4,10 +4,10 @@ Embedding manager module.
 from typing import List, Optional, Any
 
 import weaviate
-from langchain.document_loaders import PyPDFLoader
-from langchain.embeddings.openai import OpenAIEmbeddings
-from langchain.schema import Document
-from langchain.vectorstores import Weaviate
+from langchain_community.document_loaders import PyPDFLoader
+from langchain_openai import OpenAIEmbeddings
+from langchain_core.documents import Document
+from langchain_community.vectorstores import Weaviate
 
 
 class EmbeddingManager:

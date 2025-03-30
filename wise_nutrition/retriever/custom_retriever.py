@@ -3,8 +3,10 @@ Custom retriever implementation.
 """
 from typing import List, Dict, Any, Optional
 
-from langchain.schema import Document, BaseRetriever, BaseMessage
-from langchain.schema.runnable import RunnablePassthrough
+from langchain_core.documents import Document
+from langchain_core.retrievers import BaseRetriever
+from langchain_core.messages import BaseMessage
+from langchain_core.runnables import RunnablePassthrough
 
 
 class NutritionRetriever:
