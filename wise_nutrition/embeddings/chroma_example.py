@@ -3,6 +3,7 @@ Example script demonstrating how to use ChromaDB embedding manager.
 """
 import asyncio
 import os
+import shutil
 from typing import List
 from dotenv import load_dotenv
 
@@ -61,8 +62,20 @@ async def run_async_example():
     """Run an example using async methods."""
     print("\nRunning async example...")
     
+    # Use a different persist directory for async to avoid conflicts
+    persist_directory = os.path.join(os.getcwd(), "chroma_db_async")
+    
+    # Make sure the directory is writable
+    if os.path.exists(persist_directory):
+        shutil.rmtree(persist_directory)
+    os.makedirs(persist_directory, exist_ok=True)
+    
     # Create ChromaDB embedding manager
-    manager = get_embedding_manager(vector_db_type="chroma", async_mode=True)
+    manager = ChromaEmbeddingManager(
+        config=Config(),
+        collection_name="nutrition_collection_async",
+        persist_directory=persist_directory
+    )
     
     # Create a collection
     await manager.create_collection()
@@ -88,8 +101,20 @@ def run_sync_example():
     """Run an example using synchronous methods."""
     print("\nRunning synchronous example...")
     
+    # Use a separate persist directory for sync example
+    persist_directory = os.path.join(os.getcwd(), "chroma_db_sync")
+    
+    # Make sure the directory is writable
+    if os.path.exists(persist_directory):
+        shutil.rmtree(persist_directory)
+    os.makedirs(persist_directory, exist_ok=True)
+    
     # Create ChromaDB embedding manager
-    manager = get_embedding_manager(vector_db_type="chroma", async_mode=False)
+    manager = ChromaEmbeddingManager(
+        config=Config(),
+        collection_name="nutrition_collection_sync",
+        persist_directory=persist_directory
+    )
     
     # Create a collection
     manager.create_collection_sync()

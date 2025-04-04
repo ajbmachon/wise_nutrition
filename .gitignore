@@ -57,6 +57,8 @@ venv.bak/
 data/
 weaviate_data/
 .weaviate/
+chroma_db_sync/
+chroma_db_async/
 
 # Logs
 logs/

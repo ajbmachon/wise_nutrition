@@ -4,6 +4,7 @@ ChromaDB-based embedding manager module.
 from typing import List, Optional, Any, Dict, Union
 import os
 import shutil
+import copy
 
 from langchain_openai import OpenAIEmbeddings
 from langchain_core.documents import Document
@@ -90,6 +91,29 @@ class ChromaEmbeddingManager:
         # No need to call persist() as Chroma 0.4.x+ automatically persists
         print(f"Created collection: {self._collection_name}")
     
+    def _sanitize_metadata(self, metadata: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Sanitize metadata to ensure compatibility with ChromaDB.
+        
+        Args:
+            metadata: The metadata to sanitize
+            
+        Returns:
+            Sanitized metadata with list values converted to strings
+        """
+        if not metadata:
+            return metadata
+            
+        sanitized = {}
+        for key, value in metadata.items():
+            if isinstance(value, list):
+                # Convert lists to comma-separated strings
+                sanitized[key] = ", ".join(str(item) for item in value)
+            else:
+                sanitized[key] = value
+                
+        return sanitized
+    
     async def add_documents(self, documents: List[Document]) -> None:
         """
         Add documents to the ChromaDB collection.
@@ -100,14 +124,20 @@ class ChromaEmbeddingManager:
         # Initialize vector store if not already done
         await self._initialize_vector_store()
         
+        # Make a deep copy to avoid modifying original documents
+        docs_to_add = copy.deepcopy(documents)
+        
         # Transform the documents to include metadata
-        for doc in documents:
+        for doc in docs_to_add:
             if not doc.metadata.get("chunk_id"):
                 if hasattr(doc, "metadata") and isinstance(doc.metadata, dict):
                     doc.metadata["chunk_id"] = f"doc_{hash(doc.page_content)}"
+            
+            # Sanitize metadata to ensure compatibility with ChromaDB
+            doc.metadata = self._sanitize_metadata(doc.metadata)
         
         # Add documents to ChromaDB
-        self._vector_store.add_documents(documents)
+        self._vector_store.add_documents(docs_to_add)
         # No need to call persist() as Chroma 0.4.x+ automatically persists
         print(f"Added {len(documents)} documents to ChromaDB collection '{self._collection_name}'")
     
@@ -121,14 +151,20 @@ class ChromaEmbeddingManager:
         # Initialize vector store if not already done
         self._initialize_vector_store_sync()
         
+        # Make a deep copy to avoid modifying original documents
+        docs_to_add = copy.deepcopy(documents)
+        
         # Transform the documents to include metadata
-        for doc in documents:
+        for doc in docs_to_add:
             if not doc.metadata.get("chunk_id"):
                 if hasattr(doc, "metadata") and isinstance(doc.metadata, dict):
                     doc.metadata["chunk_id"] = f"doc_{hash(doc.page_content)}"
+            
+            # Sanitize metadata to ensure compatibility with ChromaDB
+            doc.metadata = self._sanitize_metadata(doc.metadata)
         
         # Add documents to ChromaDB
-        self._vector_store.add_documents(documents)
+        self._vector_store.add_documents(docs_to_add)
         # No need to call persist() as Chroma 0.4.x+ automatically persists
         print(f"Added {len(documents)} documents to ChromaDB collection '{self._collection_name}'")
     
@@ -234,7 +270,7 @@ class ChromaEmbeddingManager:
             List of similar documents
         """
         retriever = await self.get_retriever(k=k)
-        return retriever.get_relevant_documents(query)
+        return retriever.invoke(query)
     
     def search_similar_sync(self, query: str, k: int = 4) -> List[Document]:
         """
@@ -248,7 +284,7 @@ class ChromaEmbeddingManager:
             List of similar documents
         """
         retriever = self.get_retriever_sync(k=k)
-        return retriever.get_relevant_documents(query)
+        return retriever.invoke(query)
     
     async def document_exists(self, chunk_id: str) -> bool:
         """
