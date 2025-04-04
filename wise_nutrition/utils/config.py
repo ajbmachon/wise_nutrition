@@ -40,6 +40,11 @@ class Config:
         self._openai_model_high_performance = os.getenv("OPENAI_MODEL_HIGH_PERFORMANCE", "gpt-4o")
         self._anthropic_model_high_performance = os.getenv("ANTHROPIC_MODEL_HIGH_PERFORMANCE")  
         self._google_model_high_performance = os.getenv("GOOGLE_MODEL_HIGH_PERFORMANCE", "gemini-2.0-flash")
+        
+        # ChromaDB configuration
+        self._chroma_persist_directory = os.getenv("CHROMA_PERSIST_DIRECTORY", os.path.join(os.getcwd(), "chroma_db"))
+        self._chroma_collection_name = os.getenv("CHROMA_COLLECTION_NAME", "nutrition_collection")
+        self._vector_db_type = os.getenv("VECTOR_DB_TYPE", "weaviate")  # weaviate or chroma
 
     
     def _get_required_env_var(self, var_name: str) -> str:
@@ -167,6 +172,36 @@ class Config:
             Weaviate collection name
         """
         return self._weaviate_collection_name
+    
+    @property
+    def chroma_persist_directory(self) -> str:
+        """
+        Get the ChromaDB persist directory.
+        
+        Returns:
+            ChromaDB persist directory
+        """
+        return self._chroma_persist_directory
+    
+    @property
+    def chroma_collection_name(self) -> str:
+        """
+        Get the ChromaDB collection name.
+        
+        Returns:
+            ChromaDB collection name
+        """
+        return self._chroma_collection_name
+    
+    @property
+    def vector_db_type(self) -> str:
+        """
+        Get the vector database type to use.
+        
+        Returns:
+            Vector database type ('weaviate' or 'chroma')
+        """
+        return self._vector_db_type
     
     def get(self, key: str, default: Any = None) -> Any:
         """

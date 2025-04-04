@@ -9,18 +9,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-from wise_nutrition.document_loaders.pdf_loader import NutritionPDFLoader
-from wise_nutrition.embeddings.embedding_manager import EmbeddingManager
-from wise_nutrition.memory.conversation_memory import ConversationMemoryManager
-from wise_nutrition.rag.rag_chain import NutritionRAGChain
-from wise_nutrition.retriever.custom_retriever import NutritionRetriever
-from langgraph.checkpoint.memory import MemorySaver
+# from wise_nutrition.memory.conversation_memory import ConversationMemoryManager
+# from wise_nutrition.rag.rag_chain import NutritionRAGChain
+# from wise_nutrition.retriever.custom_retriever import NutritionRetriever
+# from langgraph.checkpoint.memory import MemorySaver
 
 # Global resources
 # TODO: Update initialization parameters
-memory_saver = MemorySaver()
-conversation_manager = ConversationMemoryManager(memory_saver=memory_saver)
-rag_chain = NutritionRAGChain()
+# memory_saver = MemorySaver()
+# conversation_manager = ConversationMemoryManager(memory_saver=memory_saver)
+# rag_chain = NutritionRAGChain()
 
 app = FastAPI(
     title="Wise Nutrition API",
@@ -125,3 +123,10 @@ async def shutdown_event():
     """
     # Any cleanup needed for langgraph memory saver
     pass 
+
+
+if __name__ == "__main__":
+    from langchain_openai import ChatOpenAI
+
+    llm = ChatOpenAI()
+    llm.invoke("Hello, world!")

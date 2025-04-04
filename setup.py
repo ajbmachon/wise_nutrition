@@ -19,11 +19,17 @@ setup(
             "pytest",
             "pytest-mock",
             "pytest-asyncio",
+            "chromadb",
+            "langchain-community",
         ],
         "prod": [
             "uvloop",
             "httptools",
             "gunicorn",
+        ],
+        "ingestion": [
+            "langchain-unstructured",
+            "pdfplumber",
         ]
     },
     description="A RAG-based nutrition advisor using LangChain, FastAPI, and Weaviate",

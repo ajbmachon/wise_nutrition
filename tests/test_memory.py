@@ -5,7 +5,7 @@ import pytest
 from unittest.mock import patch, MagicMock
 from uuid import uuid4
 
-from wise_nutrition.memory.conversation_memory import ConversationMemoryManager
+from wise_nutrition.memory import ConversationMemoryManager
 from langchain_core.messages import HumanMessage, AIMessage
 from langgraph.checkpoint.memory import MemorySaver
 
@@ -46,6 +46,7 @@ class TestConversationMemoryManager:
             valid_uuid = False
         assert valid_uuid
     
+    # TODO: Implement all tests below this propperly
     @pytest.mark.asyncio
     async def test_add_user_message(self):
         """Test adding a user message."""

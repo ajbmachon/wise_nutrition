@@ -1,3 +1,0 @@
-"""
-Custom retriever implementation modules.
-""" 

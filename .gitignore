@@ -52,6 +52,7 @@ venv.bak/
 *.swo
 
 # Project specific
+.cursor/
 *.pdf
 data/
 weaviate_data/
@@ -60,3 +61,5 @@ weaviate_data/
 # Logs
 logs/
 *.log 
+
+data/

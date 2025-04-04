@@ -5,7 +5,7 @@ import os
 import pytest
 from unittest.mock import patch, MagicMock
 
-from wise_nutrition.rag.rag_chain import NutritionRAGChain
+from wise_nutrition.rag_chain import NutritionRAGChain
 from langgraph.checkpoint.memory import MemorySaver
 
 
