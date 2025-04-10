@@ -45,7 +45,11 @@ class Config:
         self._chroma_persist_directory = os.getenv("CHROMA_PERSIST_DIRECTORY", os.path.join(os.getcwd(), "chroma_db"))
         self._chroma_collection_name = os.getenv("CHROMA_COLLECTION_NAME", "nutrition_collection")
         self._vector_db_type = os.getenv("VECTOR_DB_TYPE", "weaviate")  # weaviate or chroma
-
+        
+        self._langsmith_api_key = os.getenv("LANGSMITH_API_KEY", "")
+        self._langsmith_project = os.getenv("LANGSMITH_PROJECT", "wise_nutrition")
+        self._langsmith_endpoint = os.getenv("LANGSMITH_ENDPOINT", "https://eu.api.smith.langchain.com")
+        self._langsmith_tracing = os.getenv("LANGSMITH_TRACING", "false")
     
     def _get_required_env_var(self, var_name: str) -> str:
         """
@@ -202,6 +206,34 @@ class Config:
             Vector database type ('weaviate' or 'chroma')
         """
         return self._vector_db_type
+    
+    @property
+    def langsmith_api_key(self) -> str:
+        """
+        Get the LangSmith API key.
+        """
+        return self._langsmith_api_key
+    
+    @property
+    def langsmith_project(self) -> str:
+        """
+        Get the LangSmith project.
+        """
+        return self._langsmith_project
+    
+    @property
+    def langsmith_endpoint(self) -> str:
+        """
+        Get the LangSmith endpoint.
+        """
+        return self._langsmith_endpoint
+    
+    @property
+    def langsmith_tracing(self) -> str:
+        """
+        Get the LangSmith tracing.
+        """
+        return self._langsmith_tracing
     
     def get(self, key: str, default: Any = None) -> Any:
         """

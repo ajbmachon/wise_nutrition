@@ -1,10 +1,11 @@
 """
 ChromaDB-based embedding manager module.
 """
-from typing import List, Optional, Any, Dict, Union
+import copy
+import json
 import os
 import shutil
-import copy
+from typing import List, Optional, Any, Dict, Union
 
 from langchain_openai import OpenAIEmbeddings
 from langchain_core.documents import Document
@@ -109,6 +110,8 @@ class ChromaEmbeddingManager:
             if isinstance(value, list):
                 # Convert lists to comma-separated strings
                 sanitized[key] = ", ".join(str(item) for item in value)
+            elif isinstance(value, dict):
+                sanitized[key] = json.dumps(value)
             else:
                 sanitized[key] = value
                 

@@ -1,0 +1,399 @@
+<context>
+# Overview  
+Wise Nutrition is a retrieval-augmented generation (RAG) chatbot application that serves as an expert in nutrient theory, vitamins and minerals, and natural remedies based on Weston A. Price Foundation research. The application helps users improve their nutrition by providing evidence-based advice on addressing nutritional deficiencies through natural eating and traditional food preparation methods.
+
+The chatbot leverages pre-processed structured data from authoritative sources on nutrition and traditional diets, enabling it to provide specific, actionable advice while maintaining factual accuracy. The application serves as an alternative to conventional nutrition information by focusing on traditional wisdom and natural approaches to nutrition.
+
+# Core Features  
+## Nutrition Knowledge Base
+- What it does: Provides access to three specialized collections of nutrition knowledge (nutrient theory, vitamins/minerals, and natural remedies)
+- Why it's important: Offers users evidence-based information that may not be commonly available in mainstream nutrition resources
+- How it works: Utilizes vector embeddings of pre-processed nutrition data stored in a Chroma database, enabling semantic search and retrieval of relevant information
+
+## Conversational Interface
+- What it does: Allows users to interact with nutrition expertise through natural language conversations
+- Why it's important: Makes complex nutrition information accessible without requiring specialized knowledge of nutrition terminology
+- How it works: Uses LangChain with LangGraph for memory management to maintain conversation context, enabling follow-up questions and personalized recommendations
+
+## RAG-Enhanced Responses
+- What it does: Generates responses by combining LLM capabilities with retrieved nutrition knowledge
+- Why it's important: Ensures responses are factually accurate and grounded in authoritative sources rather than general AI knowledge
+- How it works: Retrieves relevant nutrition information based on the user's query and uses it to generate tailored responses
+
+## Recommendation Export
+- What it does: Allows users to save and export nutritional recommendations and recipes
+- Why it's important: Enables users to implement advice in their daily lives by providing persistent access to recommendations
+- How it works: Saves conversation highlights and specific recommendations to user profiles for later reference and export
+
+## User Authentication
+- What it does: Provides secure, personalized access to the nutrition advisor
+- Why it's important: Ensures privacy of health information and enables personalized recommendations based on user history
+- How it works: Implements standard authentication mechanisms and maintains user-specific conversation history
+
+# User Experience  
+## User Personas
+1. Health-Conscious Individual: Someone looking to optimize their nutrition through natural means rather than supplements
+2. Person with Suspected Deficiencies: Individual experiencing symptoms that might indicate nutritional deficiencies
+3. Traditional Diet Enthusiast: Person interested in implementing traditional food preparation and nutrition principles
+4. Alternative Health Practitioner: Professional seeking evidence-based traditional nutrition information to complement their practice
+
+## Key User Flows
+1. New User Registration and Onboarding
+   - User creates an account
+   - User receives brief introduction to the system's capabilities and limitations
+   - User is presented with disclaimer about non-medical nature of advice
+   - User begins first conversation
+
+2. Nutrition Query and Response
+   - User asks question about specific nutrient, symptom, or food
+   - System retrieves relevant information from knowledge base
+   - System generates comprehensive response with source attribution
+   - User can ask follow-up questions that maintain context
+
+3. Saving and Exporting Recommendations
+   - User receives valuable nutrition advice
+   - User requests to save specific recommendation
+   - System confirms save to user profile
+   - User exports recommendation as text or PDF
+
+4. Session History Review
+   - User accesses previous conversations
+   - User reviews past recommendations
+   - User continues previous conversation with context maintained
+
+## UI/UX Considerations
+- Clean, straightforward interface focusing on the conversation
+- Clear distinction between chatbot responses and source citations
+- Intuitive session management for reviewing past conversations
+- Prominent disclaimer about non-medical nature of advice
+- Simple export functionality for recommendations and recipes
+</context>
+<PRD>
+# Technical Architecture  
+## System Components
+1. **API Layer (FastAPI)**
+   - Handles HTTP requests and responses
+   - Implements authentication and session management
+   - Exposes endpoints for query processing, user management, and conversation history
+   - Provides LangServe integration for serving chain endpoints
+
+2. **LangChain Components**
+   - **RAG Chain**: Combines retrieval and generation for nutrition advice
+   - **Retriever**: Custom retriever optimized for nutrition domain knowledge
+   - **Memory**: Conversation memory management using LangGraph
+   - **Prompt Templates**: Specialized prompts for nutrition advising
+   - **LLM Integration**: Support for multiple LLM providers (OpenAI, Anthropic)
+   - **LangServe**: Deployment and serving of chains as API endpoints
+
+3. **Vector Database (Chroma)**
+   - Stores embeddings of nutrition knowledge
+   - Enables semantic search across knowledge collections
+   - Local development persistence with configurable production deployment
+
+4. **Authentication System**
+   - User registration and login
+   - Session management
+   - Password hashing and security
+
+5. **Conversation Management**
+   - Thread-based conversation storage
+   - Contextual memory using LangGraph
+   - Export functionality for recommendations
+
+## Data Models
+1. **User**
+   - User ID (primary key)
+   - Email
+   - Password (hashed)
+   - Created date
+   - Last login date
+
+2. **Conversation Session**
+   - Session ID (primary key)
+   - User ID (foreign key)
+   - Created date
+   - Last updated date
+   - Active status
+
+3. **Message**
+   - Message ID (primary key)
+   - Session ID (foreign key)
+   - Role (user/assistant)
+   - Content
+   - Timestamp
+   - Source references (for assistant messages)
+
+4. **SavedRecommendation**
+   - Recommendation ID (primary key)
+   - User ID (foreign key)
+   - Session ID (foreign key)
+   - Content
+   - Created date
+   - Tags/categories
+
+5. **Knowledge Base Document**
+   - Document ID (unique identifier)
+   - Collection type (theory, nutrients, remedies)
+   - Text content
+   - Metadata (source, nutrient type, tags)
+   - Vector embedding
+
+## APIs and Integrations
+1. **Authentication API**
+   - `/auth/register` - Create new user account
+   - `/auth/login` - User login and token generation
+   - `/auth/logout` - User logout and token invalidation
+
+2. **Conversation API**
+   - `/conversation/query` - Submit user query and get response
+   - `/conversation/sessions` - List user's conversation sessions
+   - `/conversation/sessions/{session_id}` - Get specific conversation history
+   - `/conversation/sessions/{session_id}/clear` - Clear conversation history
+
+3. **Recommendation API**
+   - `/recommendations/save` - Save a recommendation
+   - `/recommendations/list` - List user's saved recommendations
+   - `/recommendations/export` - Export recommendations as file
+
+4. **Admin API** (future)
+   - Knowledge base management endpoints
+   - User management endpoints
+
+5. **LLM Integrations**
+   - OpenAI API integration
+   - Anthropic API integration (optional)
+
+6. **LangServe Endpoints**
+   - `/api/v1/chat` - Main chat interface using LangServe
+   - `/api/v1/nutrition_rag_chain/invoke` - Direct chain invocation
+   - `/api/v1/nutrition_rag_chain/stream` - Streaming chain invocation
+   - `/api/v1/nutrition_rag_chain/batch` - Batch processing
+
+## Infrastructure Requirements
+1. **Development Environment**
+   - Local Chroma DB for vector storage
+   - Environment variables for API keys and configuration
+   - Docker development environment
+
+2. **Production Environment**
+   - Containerized deployment with Docker
+   - Secure storage for API keys and credentials
+   - Database for user and conversation storage
+   - Managed vector database or self-hosted solution
+   - Authentication service
+   - API gateway for request routing
+   - Logging and monitoring solutions
+
+# Development Roadmap  
+## Phase 1: Core API Refactoring
+1. Refactor existing API structure to use modern FastAPI patterns
+   - Update deprecated FastAPI event handlers
+   - Implement proper dependency injection
+   - Structure application using router-based organization
+
+2. Implement LangServe integration
+   - Convert existing chain implementations to LangServe-compatible format
+   - Set up router for LangServe endpoints
+   - Configure proper streaming support
+   - Implement batch processing capability
+
+3. Properly integrate LangGraph for memory management
+   - Update conversation memory management to use current LangGraph patterns
+   - Implement thread-based storage of conversation history
+   - Add conversation pruning/management capabilities
+
+4. Finalize proper RAG implementation
+   - Complete retriever implementation with domain-specific filtering
+   - Optimize document chunking and embedding
+   - Implement source attribution in responses
+   - Add hybrid retrieval strategy
+
+## Phase 2: User Management and Auth
+1. Implement user authentication system
+   - User registration endpoint
+   - Login/logout functionality
+   - Password hashing and security
+   - JWT-based authentication
+
+2. Add conversation session management
+   - Create session storage system
+   - Implement session creation and retrieval
+   - Add context window management
+   - Implement session listing and selection
+
+3. Implement proper API security
+   - Add rate limiting
+   - Implement proper CORS configuration
+   - Add request validation
+   - Implement secure error handling
+
+## Phase 3: Advanced Features
+1. Develop saved recommendations system
+   - Create recommendation storage
+   - Implement tagging and categorization
+   - Add export functionality (PDF, text)
+   - Implement search across saved recommendations
+
+2. Enhance retrieval mechanisms
+   - Implement query reformulation for better retrieval
+   - Add post-retrieval re-ranking
+   - Implement metadata filtering
+   - Add cross-collection retrieval strategies
+
+3. Improve response quality
+   - Implement fact-checking against source material
+   - Add citation generation
+   - Implement response evaluation metrics
+   - Add feedback mechanism for improving retrieval
+
+## Phase 4: UI and Integration
+1. Create simple demo UI (temporary)
+   - Implement basic chat interface
+   - Add conversation history view
+   - Create recommendation export view
+   - Add simple user profile management
+
+2. Document API for frontend integration
+   - Create OpenAPI documentation
+   - Write integration guides
+   - Create example code for frontend developers
+   - Implement webhook capabilities for notifications
+
+## Phase 5: Testing and Deployment
+1. Comprehensive testing
+   - Unit tests for all major components
+   - Integration tests for API flows
+   - Performance testing for RAG system
+   - Security testing for authentication
+
+2. Production deployment preparation
+   - Containerization with Docker
+   - Environment configuration management
+   - Logging and monitoring setup
+   - Backup and recovery procedures
+
+# Logical Dependency Chain
+## Foundation Components (Priority 1)
+1. Core RAG Chain Implementation
+   - Complete the NutritionRAGChain class implementation
+   - Implement proper document formatting
+   - Build specialized prompt templates
+   - Create source attribution mechanism
+
+2. Retriever Enhancement
+   - Complete the NutritionRetriever implementation
+   - Add domain-specific filtering
+   - Implement metadata-aware retrieval
+   - Create retriever evaluation tools
+
+3. LangServe Integration
+   - Refactor chains to work with LangServe
+   - Configure proper endpoint structure
+   - Set up streaming support
+   - Implement proper response formatting
+
+## User Experience Components (Priority 2)
+1. Conversation Memory with LangGraph
+   - Complete ConversationMemoryManager implementation
+   - Add thread management capabilities
+   - Implement context window management
+   - Create conversation summary generation
+
+2. User Authentication System
+   - Implement basic authentication endpoints
+   - Create session management
+   - Set up user storage
+   - Implement token-based auth
+
+3. API Structure Refinement
+   - Refactor API routing
+   - Implement proper dependency injection
+   - Add validation middleware
+   - Create standardized response formatting
+
+## Advanced Features (Priority 3)
+1. Recommendation Management
+   - Create recommendation extraction from responses
+   - Implement storage system
+   - Add export capabilities
+   - Create recommendation retrieval endpoints
+
+2. Enhanced Retrieval Strategies
+   - Implement query reformulation
+   - Add hybrid retrieval
+   - Create cross-collection search
+   - Improve relevance scoring
+
+3. Response Enhancement
+   - Add fact-checking capability
+   - Implement proper citations
+   - Create confidence scoring
+   - Add feedback mechanism
+
+# Risks and Mitigations  
+## Technical Challenges
+1. **Risk**: Retrieval quality might be insufficient for accurate nutrition advice
+   - **Mitigation**: Implement hybrid retrieval strategies, fine-tune embeddings specifically for the nutrition domain, add post-retrieval re-ranking
+
+2. **Risk**: Context management with LangGraph might be challenging
+   - **Mitigation**: Start with simpler memory implementation, gradually add complexity, create robust testing framework for memory management
+
+3. **Risk**: Balancing between retrieval accuracy and response speed
+   - **Mitigation**: Implement caching strategies, optimize database queries, benchmark different retrieval approaches
+
+4. **Risk**: Integrating multiple LLM providers might increase complexity
+   - **Mitigation**: Create abstraction layer for LLM interactions, implement provider-specific optimizations, have fallback mechanisms
+
+## Accuracy and Trust Risks
+1. **Risk**: Providing incorrect or potentially harmful nutrition advice
+   - **Mitigation**: Implement strict grounding in source material, add clear disclaimers, create filter for potentially harmful advice, implement monitoring for misuse
+
+2. **Risk**: Hallucination of non-existent source information
+   - **Mitigation**: Strict citation mechanism, fact verification against retrieved documents, confidence scoring for responses
+
+3. **Risk**: Users treating nutrition advice as medical advice
+   - **Mitigation**: Clear disclaimers, careful response phrasing, explicit differentiation between general knowledge and personalized advice
+
+## Resource Constraints
+1. **Risk**: Vector database scaling challenges
+   - **Mitigation**: Implement efficient chunking, use filtering to reduce search space, optimize embedding storage
+
+2. **Risk**: LLM API costs could become prohibitive
+   - **Mitigation**: Implement caching for common queries, optimize prompt length, use lower-cost models for retrieval enhancement
+
+3. **Risk**: Development complexity might exceed available resources
+   - **Mitigation**: Phase development carefully, focus on core functionality first, use off-the-shelf components where possible
+
+# Appendix  
+## Data Collections Overview
+1. **Nutrient Theory**
+   - Content: Fundamental nutrition principles based on Weston A. Price Foundation
+   - Structure: Sections, quotes, summaries, tags, sources
+   - Example fields: section, quote, summary, tags, source, chunk_id
+
+2. **Vitamins and Minerals**
+   - Content: Detailed information about specific nutrients, deficiency symptoms, and food sources
+   - Structure: Nutrient name, category, text content
+   - Example fields: nutrient, category, text, metadata
+
+3. **Recipes and Remedies**
+   - Content: Traditional recipes and natural remedies for addressing nutritional needs
+   - Structure: Title, section, text, nutrients, chunk_id
+   - Example fields: title, section, text, nutrients, chunk_id
+
+## Technical Stack
+- **Backend**: FastAPI, LangChain, LangServe, LangGraph
+- **Vector Database**: ChromaDB (local development), potentially Weaviate (production)
+- **LLM Providers**: OpenAI (GPT-3.5/4), Anthropic (Claude)
+- **Embedding Models**: OpenAI embeddings
+- **Authentication**: JWT-based authentication
+- **Deployment**: Docker containers
+- **Monitoring**: LangSmith for tracking and debugging
+
+## Data Security Considerations
+- All user health-related queries should be treated as sensitive information
+- Implement proper encryption for data at rest and in transit
+- Define clear data retention policies
+- Create anonymized usage statistics for system improvement
+- Implement proper access controls for all user data
+</PRD>

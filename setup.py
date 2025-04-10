@@ -1,18 +1,22 @@
+"""
+Setup script for Wise Nutrition.
+"""
 from setuptools import setup, find_packages
 
 setup(
-    name="wise_nutrition",
+    name="wise-nutrition",
     version="0.1.0",
     packages=find_packages(),
+    include_package_data=True,
+    python_requires=">=3.11",
     install_requires=[
-        "langchain",
-        "fastapi",
-        "uvicorn",
-        "weaviate-client",
-        "openai",
-        "pypdf",
-        "python-multipart",
-        "tiktoken",
+        "click>=8.0.0",
+        "langchain-core>=0.1.0",
+        "langchain-openai>=0.0.5",
+        "langchain-chroma>=0.0.5",
+        "fastapi>=0.100.0",
+        "pydantic>=2.0.0",
+        "python-dotenv>=1.0.0",
     ],
     extras_require={
         "dev": [
@@ -31,6 +35,11 @@ setup(
             "langchain-unstructured",
             "pdfplumber",
         ]
+    },
+    entry_points={
+        "console_scripts": [
+            "nutrition-cli=wise_nutrition.cli.main:cli",
+        ],
     },
     description="A RAG-based nutrition advisor using LangChain, FastAPI, and Weaviate",
     author="Andre Machon",
