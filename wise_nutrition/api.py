@@ -1,132 +1,76 @@
 """
-FastAPI main application.
+FastAPI main application using APIRouters.
 """
 import os
 from typing import Dict, List, Optional
 
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-from pydantic import BaseModel
 
-from langchain.chat_models import init_chat_model
-from wise_nutrition.utils.config import Config
-from wise_nutrition.utils.prompts import NUTRITION_EXPERT_CHAT_PROMPT
-# from wise_nutrition.memory.conversation_memory import ConversationMemoryManager
-# from wise_nutrition.rag.rag_chain import NutritionRAGChain
-# from wise_nutrition.retriever.custom_retriever import NutritionRetriever
-# from langgraph.checkpoint.memory import MemorySaver
+# Import routers
+from wise_nutrition.routers import health, rag
 
-# Global resources
-# TODO: Update initialization parameters
-# memory_saver = MemorySaver()
-# conversation_manager = ConversationMemoryManager(memory_saver=memory_saver)
-# rag_chain = NutritionRAGChain()
-
+# --- FastAPI App Setup --- #
 app = FastAPI(
     title="Wise Nutrition API",
-    description="A RAG-based nutrition advisor API",
+    description="A RAG-based nutrition advisor API with LangServe endpoints",
     version="0.1.0"
 )
 
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"], # Allow all origins for simplicity, restrict in production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# --- Include Routers --- #
+app.include_router(health.router, tags=["Health"])
+# Include the RAG router with a prefix
+app.include_router(rag.router, prefix="/api/v1", tags=["RAG Chain"])
 
-class QueryRequest(BaseModel):
-    """Query request model."""
-    query: str
-    session_id: Optional[str] = None
-
-
-class QueryResponse(BaseModel):
-    """Query response model."""
-    answer: str
-    sources: List[str]
-    session_id: str
-
-
+# --- Root Endpoint --- #
 @app.get("/")
 async def root():
-    """Root endpoint."""
-    return {"message": "Welcome to the Wise Nutrition API"}
+    """Root endpoint providing basic info and link to docs/playground."""
+    return {
+        "message": "Welcome to the Wise Nutrition API.",
+        "docs": "/docs",
+        "rag_playground": "/api/v1/nutrition_rag_chain/playground"
+    }
 
+# --- Custom Exception Handlers (Example Placeholder) --- #
+# You can add custom handlers to catch specific exceptions from your
+# chain or dependencies and return standardized error responses.
+# from fastapi import Request
+# from fastapi.responses import JSONResponse
+#
+# class ChainInvocationError(Exception):
+#     pass
+#
+# @app.exception_handler(ChainInvocationError)
+# async def chain_invocation_exception_handler(request: Request, exc: ChainInvocationError):
+#     return JSONResponse(
+#         status_code=500,
+#         content={"message": f"Error processing request: {exc}"},
+#     )
+#
+# @app.exception_handler(ValueError) # Example for built-in errors
+# async def value_error_exception_handler(request: Request, exc: ValueError):
+#     return JSONResponse(
+#         status_code=400, # Bad request
+#         content={"message": f"Invalid input: {exc}"},
+#     )
 
-@app.post("/query", response_model=QueryResponse)
-async def query(request: QueryRequest):
-    """
-    Query the nutrition advisor.
-    
-    This endpoint uses LangGraph for memory management.
-    """
-    # Get or create a session_id TODO: add this in again
-    # session_id = request.session_id or conversation_manager.generate_thread_id()
-    
-    # Use the rag_chain with the session_id
-    # TODO: use this later and use simple chain for now
-    # response = rag_chain.invoke(
-    #     query=request.query,
-    #     session_id=session_id
-    # )
-    
-    model = init_chat_model(
-        model_name=Config.openai_model_name,
-        api_key=Config.openai_api_key
-    )
-    
-    response = model.invoke(
-        NUTRITION_EXPERT_CHAT_PROMPT.format(
-            question=request.query,
-            # sources=request.sources TODO: Add this later once template has a placeholder
-        )
-    )
-    # TODO: Add the session_id to the response
-    # response["session_id"] = session_id
-    
-    return response
+# --- Removed Old Logic --- #
+# - RAG chain instantiation (moved to routers/rag.py and dependencies.py)
+# - LangServe add_routes call (moved to routers/rag.py)
+# - Health check endpoint (moved to routers/health.py)
 
-
-@app.delete("/sessions/{session_id}")
-async def clear_session(session_id: str):
-    """
-    Clear a conversation session.
-    """
-    if not session_id:
-        raise HTTPException(status_code=400, detail="Session ID is required")
-    
-    conversation_manager.clear(session_id)
-    return {"message": f"Session {session_id} cleared successfully"}
-
-# TODO: this is deprecated update to modern syntax
-# Initialize on startup
-@app.on_event("startup")
-async def startup_event():
-    """
-    Initialize resources on startup.
-    """
-    pass
-    # global memory_saver, conversation_manager, rag_chain
-    
-    # # Initialize the memory saver and conversation manager
-    # memory_saver = MemorySaver()
-    # conversation_manager = ConversationMemoryManager(memory_saver=memory_saver)
-    
-    # Other initializations would go here
-    # (embedding_manager, retriever, rag_chain)
-
-
-# TODO: this is deprecated update to modern syntax
-# Cleanup on shutdown
-@app.on_event("shutdown")
-async def shutdown_event():
-    """
-    Cleanup resources on shutdown.
-    """
-    # Any cleanup needed for langgraph memory saver
-    pass 
+# --- Run the app (for local development) --- #
+if __name__ == "__main__":
+    import uvicorn
+    # Use reload=True for development
+    uvicorn.run("wise_nutrition.api:app", host="0.0.0.0", port=8000, reload=True) 
