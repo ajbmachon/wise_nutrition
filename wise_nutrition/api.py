@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 # Import routers
-from wise_nutrition.routers import health, rag
+from wise_nutrition.routers import health, rag, auth
 
 # --- FastAPI App Setup --- #
 app = FastAPI(
@@ -30,6 +30,8 @@ app.add_middleware(
 app.include_router(health.router, tags=["Health"])
 # Include the RAG router with a prefix
 app.include_router(rag.router, prefix="/api/v1", tags=["RAG Chain"])
+# Include the auth router with a prefix
+app.include_router(auth.router, prefix="/api/v1", tags=["Authentication"])
 
 # --- Root Endpoint --- #
 @app.get("/")
@@ -38,7 +40,8 @@ async def root():
     return {
         "message": "Welcome to the Wise Nutrition API.",
         "docs": "/docs",
-        "rag_playground": "/api/v1/nutrition_rag_chain/playground"
+        "rag_playground": "/api/v1/nutrition_rag_chain/playground",
+        "auth": "/api/v1/auth"
     }
 
 # --- Custom Exception Handlers (Example Placeholder) --- #
@@ -73,4 +76,4 @@ async def root():
 if __name__ == "__main__":
     import uvicorn
     # Use reload=True for development
-    uvicorn.run("wise_nutrition.api:app", host="0.0.0.0", port=8000, reload=True) 
+    uvicorn.run("wise_nutrition.api:app", host="0.0.0.0", port=8002, reload=True) 

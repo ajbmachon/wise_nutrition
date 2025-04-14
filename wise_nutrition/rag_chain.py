@@ -185,15 +185,16 @@ class NutritionRAGChain(BaseModel):
             input_messages_key="query",
             history_messages_key="history",
             output_messages_key="response",
-            history_factory_config={
-                "session_id": {
+            history_factory_config=[
+                {
                     "id": "session_id",
                     "name": "Session ID",
                     "description": "Unique identifier for the session.",
                     "default": "",
                     "is_shared": True,
+                    "annotation": str
                 }
-            }
+            ]
         )
 
         # Final step to format the output into RAGOutput Pydantic model
@@ -216,10 +217,22 @@ class NutritionRAGChain(BaseModel):
     # Wrapper method to fetch history compatible with RWMH
     def _get_session_history_from_manager(self, session_id: str) -> BaseChatMessageHistory:
         """Loads chat history for a given session_id."""
-        # For now, return a dummy in-memory history
-        # In a production implementation, this would use the memory_saver
-        print(f"Warning: Using dummy in-memory ChatMessageHistory for session {session_id}.")
-        return ChatMessageHistory()
+        print(f"Getting chat history for session {session_id}")
+        
+        # Create a new ChatMessageHistory for this session
+        history = ChatMessageHistory()
+        
+        # In a production implementation, we would load messages from memory_saver
+        # For now, we're using an in-memory history that will be empty on first access
+        
+        # Add a system message if the history is empty to provide context
+        if not history.messages:
+            print(f"Adding initial system message for new session {session_id}")
+            history.add_message(SystemMessage(
+                content="I am a nutrition advisor AI. I can help you with questions about nutrition, vitamins, minerals, and healthy eating habits."
+            ))
+        
+        return history
 
     # --- Main Interface ---
 
@@ -237,6 +250,18 @@ class NutritionRAGChain(BaseModel):
         if "configurable" not in final_config:
             final_config["configurable"] = {}
         final_config["configurable"]["session_id"] = session_id
+        
+        # Set up LangSmith tracing options
+        if "tags" not in final_config:
+            final_config["tags"] = []
+        
+        # Add useful tags for tracking in LangSmith
+        if isinstance(final_config["tags"], list):
+            final_config["tags"].extend(["nutrition_rag", "production"])
+        
+        # Ensure run_name is set for LangSmith UI
+        if "run_name" not in final_config:
+            final_config["run_name"] = f"Nutrition Query: {input.query[:30]}..." if len(input.query) > 30 else input.query
 
         # Input to RunnableWithMessageHistory expects a dict with the input_messages_key
         history_input = {"query": input.query}

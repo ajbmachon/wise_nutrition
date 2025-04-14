@@ -17,6 +17,8 @@ setup(
         "fastapi>=0.100.0",
         "pydantic>=2.0.0",
         "python-dotenv>=1.0.0",
+        "firebase-admin>=6.0.0",
+        "email-validator>=2.0.0",  # For Pydantic's EmailStr validation
     ],
     extras_require={
         "dev": [

@@ -48,8 +48,28 @@ class Config:
         
         self._langsmith_api_key = os.getenv("LANGSMITH_API_KEY", "")
         self._langsmith_project = os.getenv("LANGSMITH_PROJECT", "wise_nutrition")
-        self._langsmith_endpoint = os.getenv("LANGSMITH_ENDPOINT", "https://eu.api.smith.langchain.com")
-        self._langsmith_tracing = os.getenv("LANGSMITH_TRACING", "false")
+        self._langsmith_endpoint = os.getenv("LANGSMITH_ENDPOINT", "https://api.smith.langchain.com")
+        
+        # Convert string 'true'/'false' to boolean
+        tracing_value = os.getenv("LANGSMITH_TRACING", "false").lower()
+        self._langsmith_tracing = tracing_value == "true" or tracing_value == "1"
+        
+        # Make sure LangSmith environment variables are set if tracing is enabled
+        if self._langsmith_tracing:
+            # Make sure these variables are available to LangChain globally
+            os.environ["LANGCHAIN_TRACING"] = "true"
+            os.environ["LANGCHAIN_TRACING_V2"] = "true"
+            
+            if self._langsmith_api_key:
+                os.environ["LANGCHAIN_API_KEY"] = self._langsmith_api_key
+            
+            if self._langsmith_endpoint:
+                os.environ["LANGCHAIN_ENDPOINT"] = self._langsmith_endpoint
+                
+            if self._langsmith_project:
+                os.environ["LANGCHAIN_PROJECT"] = self._langsmith_project
+                
+            print(f"LangSmith tracing enabled for project: {self._langsmith_project}")
     
     def _get_required_env_var(self, var_name: str) -> str:
         """
@@ -229,9 +249,9 @@ class Config:
         return self._langsmith_endpoint
     
     @property
-    def langsmith_tracing(self) -> str:
+    def langsmith_tracing(self) -> bool:
         """
-        Get the LangSmith tracing.
+        Get the LangSmith tracing setting as a boolean.
         """
         return self._langsmith_tracing
     

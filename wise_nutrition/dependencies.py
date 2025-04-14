@@ -42,10 +42,18 @@ def get_llm() -> Runnable:
         # from fastapi import HTTPException
         # raise HTTPException(status_code=500, detail="OpenAI API key not configured")
     try:
+        # Set up LLM with configuration
         return ChatOpenAI(
             model=config.openai_model_default,
             api_key=api_key,
-            temperature=0
+            temperature=0,
+            # Add LangSmith tracking metadata
+            tags=["nutrition_advisor", "openai"],
+            metadata={
+                "model": config.openai_model_default,
+                "use_case": "nutrition_advisory",
+                "service": "wise_nutrition"
+            }
         )
     except Exception as e:
         print(f"Error initializing ChatOpenAI: {e}")
@@ -56,35 +64,118 @@ def get_llm() -> Runnable:
 
 def get_retriever() -> Runnable:
     """Dependency to get the retriever instance."""
-    # TODO: Replace with actual retriever implementation (Task 2 refinement)
-    # Using the same dummy logic as before for now
     api_key = config.openai_api_key
     if not api_key:
         print("Warning: OPENAI_API_KEY not found for retriever embeddings.")
         # Consider raising exception if embeddings are critical
 
     try:
-        persist_directory = "chroma_db_dummy"
+        persist_directory = "chroma_db"
+        embedding_function = OpenAIEmbeddings(api_key=api_key)
+        
+        # Check if the vector store exists
         if not os.path.exists(persist_directory):
+            # Create the directory and import data
             os.makedirs(persist_directory)
-            dummy_docs = [Document(page_content="dummy content")]
-            # TODO: Add error handling for API key
-            embedding_function = OpenAIEmbeddings(api_key=api_key)
-            dummy_db = Chroma.from_documents(
-                dummy_docs, embedding_function,
+            
+            # Load sample data from files
+            documents = []
+            
+            # Load nutrition.txt
+            nutrition_path = "data/samples/nutrition.txt"
+            if os.path.exists(nutrition_path):
+                with open(nutrition_path, 'r') as f:
+                    content = f.read()
+                    # Split by double newlines to get sections
+                    sections = content.split('\n\n')
+                    for section in sections:
+                        if section.strip():
+                            documents.append(Document(
+                                page_content=section.strip(),
+                                metadata={"source": "nutrition_sample", "type": "general"}
+                            ))
+            
+            # Load vitamins.json
+            vitamins_path = "data/samples/vitamins.json"
+            if os.path.exists(vitamins_path):
+                import json
+                with open(vitamins_path, 'r') as f:
+                    vitamins_data = json.load(f)
+                    for vitamin in vitamins_data:
+                        content = f"Vitamin: {vitamin.get('name', '')}\n"
+                        content += f"Description: {vitamin.get('description', '')}\n"
+                        content += f"Benefits: {', '.join(vitamin.get('benefits', []))}\n"
+                        
+                        # Fix: Use food_sources instead of sources
+                        food_sources = vitamin.get('food_sources', [])
+                        content += f"Food Sources: {', '.join(food_sources)}\n"
+                        
+                        # Add RDA information
+                        rda = vitamin.get('rda', {})
+                        if rda:
+                            content += "Recommended Daily Allowance:\n"
+                            for group, amount in rda.items():
+                                content += f"  - {group}: {amount}\n"
+                        
+                        # Add deficiency symptoms
+                        deficiency = vitamin.get('deficiency_symptoms', [])
+                        if deficiency:
+                            content += f"Deficiency Symptoms: {', '.join(deficiency)}"
+                        
+                        documents.append(Document(
+                            page_content=content,
+                            metadata={"source": "vitamins_sample", "type": "vitamin", "name": vitamin.get('name', '')}
+                        ))
+            
+            # Load recipes.json
+            recipes_path = "data/samples/recipes.json"
+            if os.path.exists(recipes_path):
+                import json
+                with open(recipes_path, 'r') as f:
+                    recipes_data = json.load(f)
+                    for recipe in recipes_data:
+                        content = f"Recipe: {recipe.get('name', '')}\n"
+                        content += f"Description: {recipe.get('description', '')}\n"
+                        content += f"Ingredients: {', '.join(recipe.get('ingredients', []))}\n"
+                        content += f"Instructions: {recipe.get('instructions', '')}\n"
+                        content += f"Nutrition: {recipe.get('nutrition_info', '')}"
+                        
+                        documents.append(Document(
+                            page_content=content,
+                            metadata={"source": "recipes_sample", "type": "recipe", "name": recipe.get('name', '')}
+                        ))
+            
+            print(f"Loaded {len(documents)} documents from sample files")
+            
+            # Create and persist the vector store
+            vector_store = Chroma.from_documents(
+                documents, embedding_function,
                 persist_directory=persist_directory
             )
-            dummy_db.persist()
+            vector_store.persist()
+            print(f"Vector store created and persisted at {persist_directory}")
         else:
-            embedding_function = OpenAIEmbeddings(api_key=api_key)
-            dummy_db = Chroma(
+            # Load existing vector store
+            vector_store = Chroma(
                 persist_directory=persist_directory,
                 embedding_function=embedding_function
             )
-        return dummy_db.as_retriever()
+            print(f"Loaded existing vector store from {persist_directory}")
+            
+        # Return the retriever
+        return vector_store.as_retriever(search_type="mmr", search_kwargs={"k": 5})
     except Exception as e:
-        print(f"Error creating dummy retriever dependency: {e}. Using Passthrough.")
-        return RunnablePassthrough()
+        print(f"Error creating retriever: {e}")
+        # Create a small fallback set of documents if vector store creation fails
+        fallback_docs = [
+            Document(page_content="Vitamin D is essential for calcium absorption and bone health."),
+            Document(page_content="Good sources of Vitamin D include sunlight, fatty fish, fortified foods."),
+            Document(page_content="Vitamin C supports immune function and is found in citrus fruits."),
+            Document(page_content="Iron is important for blood health and can be found in red meat and leafy greens.")
+        ]
+        fallback_db = Chroma.from_documents(fallback_docs, embedding_function)
+        print("Created fallback retriever with basic nutrition information")
+        return fallback_db.as_retriever()
 
 def get_rag_chain(
     retriever: Annotated[Runnable, Depends(get_retriever)],
