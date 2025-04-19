@@ -27,6 +27,7 @@ from uuid import UUID, uuid4
 
 # Import the memory components
 from wise_nutrition.memory import ConversationMemoryManager, ConversationState
+from wise_nutrition.citation_generator import CitationGenerator, Citation
 
 # Define Input/Output Schemas using Pydantic
 class RAGInput(BaseModel):
@@ -37,23 +38,25 @@ class RAGOutput(BaseModel):
     query: str = Field(description="The original user query.")
     response: str = Field(description="The generated response to the query.")
     sources: List[Dict[str, Any]] = Field(description="List of source documents used.")
+    citations: List[Dict[str, Any]] = Field(default_factory=list, description="Formatted citations for sources.")
     structured_data: Dict[str, Any] = Field(description="Extracted structured nutrition data.")
     session_id: str = Field(description="The session ID used or generated.")
 
-# Use composition pattern instead of inheritance
-class NutritionRAGChain(BaseModel):
+# Implement Runnable interface for LangServe compatibility
+class NutritionRAGChain(RunnableSerializable[Dict[str, Any], Dict[str, Any]]):
     """
     RAG chain for nutrition-related queries.
     Orchestrates document retrieval, response generation, and source formatting for nutrition advice.
-    Uses composition pattern for cleaner Pydantic compatibility.
+    Implements RunnableSerializable for LangServe compatibility.
     """
 
     retriever: Runnable
     llm: Runnable
     memory_manager: ConversationMemoryManager
+    citation_generator: CitationGenerator
     memory_saver: Optional[BaseCheckpointSaver] = None
     model_name: str = "gpt-3.5-turbo"
-
+    
     model_config = {"arbitrary_types_allowed": True}
 
     def __init__(
@@ -61,6 +64,7 @@ class NutritionRAGChain(BaseModel):
         retriever: Runnable,
         llm: Runnable,
         memory_manager: ConversationMemoryManager,
+        citation_generator: Optional[CitationGenerator] = None,
         openai_api_key: Optional[str] = None,
         model_name: str = "gpt-3.5-turbo",
         **kwargs
@@ -72,17 +76,23 @@ class NutritionRAGChain(BaseModel):
             retriever: A Runnable document retriever instance.
             llm: A Runnable language model instance.
             memory_manager: A ConversationMemoryManager instance.
+            citation_generator: A CitationGenerator instance (optional).
             openai_api_key: OpenAI API key (optional, used if initializing default LLM).
             model_name: Model name (optional, used if initializing default LLM).
         """
         # Store the memory saver from the manager for easier access
         memory_saver = memory_manager.get_memory_saver()
         
+        # Create a default citation generator if none provided
+        if citation_generator is None:
+            citation_generator = CitationGenerator()
+        
         # Initialize the model with all parameters
         super().__init__(
             retriever=retriever,
             llm=llm,
             memory_manager=memory_manager,
+            citation_generator=citation_generator,
             memory_saver=memory_saver,
             model_name=model_name,
             **kwargs
@@ -126,182 +136,161 @@ class NutritionRAGChain(BaseModel):
             sources.append(source_info)
         return sources
 
-    # --- Chain Building ---
-
-    def build_runnable(self) -> Runnable:
+    def generate_citations(self, docs: List[Document]) -> List[Dict[str, Any]]:
         """
-        Build the main RAG chain using LCEL, integrated with message history.
-        """
-
-        # Define the core RAG steps
-        def rag_core_logic(input_dict: Dict[str, Any]) -> Dict[str, Any]:
-            query = input_dict["query"]
-            # History is available via input_dict["history"] if needed for context
-
-            # Simplified analysis/retrieval for core logic
-            analyzed_query = query # Use original query directly here
-
-            # Retrieve documents
-            try:
-                retrieved_docs = self.retriever.invoke(analyzed_query)
-            except Exception as e:
-                print(f"Error during retrieval in core logic: {e}")
-                retrieved_docs = []
-
-            # Format context
-            context = self._format_docs(retrieved_docs)
-
-            # Generate response using LLM
-            prompt_with_values = NUTRITION_BASE_PROMPT.format_prompt(
-                context=context,
-                question=query
-            )
-            try:
-                response = self.llm.invoke(prompt_with_values)
-                response_text = response.content if hasattr(response, 'content') else str(response)
-            except Exception as e:
-                 print(f"Error during LLM invocation: {e}")
-                 response_text = "Error generating response."
-
-            # Format sources and structured data
-            sources = self.format_sources(retrieved_docs)
-            structured_data = self.extract_nutrition_data(retrieved_docs)
-
-            # Return the necessary outputs for the final step
-            return {
-                "response": response_text,
-                "sources": sources,
-                "structured_data": structured_data,
-                "query": query # Pass query along
-            }
-
-        # Wrap the core logic in a RunnableLambda
-        _rag_chain_core = RunnableLambda(rag_core_logic)
-
-        # --- Integrate Memory using RunnableWithMessageHistory ---
-        chain_with_memory = RunnableWithMessageHistory(
-            runnable=_rag_chain_core,
-            get_session_history=self._get_session_history_from_manager,
-            input_messages_key="query",
-            history_messages_key="history",
-            output_messages_key="response",
-            history_factory_config=[
-                {
-                    "id": "session_id",
-                    "name": "Session ID",
-                    "description": "Unique identifier for the session.",
-                    "default": "",
-                    "is_shared": True,
-                    "annotation": str
-                }
-            ]
-        )
-
-        # Final step to format the output into RAGOutput Pydantic model
-        def format_final_output(result_dict: Dict[str, Any], config: RunnableConfig) -> RAGOutput:
-            session_id = config["configurable"]["session_id"]
-            # Ensure all keys exist, provide defaults if necessary
-            return RAGOutput(
-                query=result_dict.get("query", "<Query not passed>" if not result_dict else "<Query missing>"),
-                response=result_dict.get("response", "<Error: No response generated>"),
-                sources=result_dict.get("sources", []),
-                structured_data=result_dict.get("structured_data", {}),
-                session_id=session_id
-            )
-
-        # Chain the history wrapper with the final formatting step
-        full_chain = chain_with_memory | RunnableLambda(format_final_output)
-
-        return full_chain
-
-    # Wrapper method to fetch history compatible with RWMH
-    def _get_session_history_from_manager(self, session_id: str) -> BaseChatMessageHistory:
-        """Loads chat history for a given session_id."""
-        print(f"Getting chat history for session {session_id}")
+        Generate formatted citations for the source documents.
         
-        # Create a new ChatMessageHistory for this session
-        history = ChatMessageHistory()
-        
-        # In a production implementation, we would load messages from memory_saver
-        # For now, we're using an in-memory history that will be empty on first access
-        
-        # Add a system message if the history is empty to provide context
-        if not history.messages:
-            print(f"Adding initial system message for new session {session_id}")
-            history.add_message(SystemMessage(
-                content="I am a nutrition advisor AI. I can help you with questions about nutrition, vitamins, minerals, and healthy eating habits."
-            ))
-        
-        return history
-
-    # --- Main Interface ---
-
-    def invoke(self, input: RAGInput, config: Optional[RunnableConfig] = None) -> RAGOutput:
-        """
-        Invoke the RAG chain with history support.
-        Accepts RAGInput Pydantic model.
-        Returns RAGOutput Pydantic model.
-        """
-        runnable = self.build_runnable()
-
-        # Ensure config includes session_id for memory
-        session_id = input.session_id or self.memory_manager.generate_thread_id()
-        final_config = config or {}
-        if "configurable" not in final_config:
-            final_config["configurable"] = {}
-        final_config["configurable"]["session_id"] = session_id
-        
-        # Set up LangSmith tracing options
-        if "tags" not in final_config:
-            final_config["tags"] = []
-        
-        # Add useful tags for tracking in LangSmith
-        if isinstance(final_config["tags"], list):
-            final_config["tags"].extend(["nutrition_rag", "production"])
-        
-        # Ensure run_name is set for LangSmith UI
-        if "run_name" not in final_config:
-            final_config["run_name"] = f"Nutrition Query: {input.query[:30]}..." if len(input.query) > 30 else input.query
-
-        # Input to RunnableWithMessageHistory expects a dict with the input_messages_key
-        history_input = {"query": input.query}
-
-        # Invoke the full chain
-        try:
-            result = runnable.invoke(history_input, config=final_config)
+        Args:
+            docs: List of source documents
             
-            # Result should already be formatted as RAGOutput by the final lambda
-            if isinstance(result, RAGOutput):
-                return result
-            else:
-                # This case indicates an issue in the chain structure or output parsing
-                print(f"Error: Unexpected result type from chain: {type(result)}. Expected RAGOutput.")
-                return RAGOutput(
-                    query=input.query,
-                    response="Error: Chain returned unexpected output format.",
-                    sources=[],
-                    structured_data={},
-                    session_id=session_id
-                )
-        except Exception as e:
-            print(f"Error invoking RAG chain: {e}")
-            return RAGOutput(
-                query=input.query,
-                response=f"Error processing your request: {str(e)}",
-                sources=[],
-                structured_data={},
-                session_id=session_id
-            )
+        Returns:
+            List of citation dictionaries
+        """
+        print("Generating citations...")
+        citations = self.citation_generator.generate_citations(docs)
+        
+        # Convert Citation objects to dictionaries for output
+        citation_dicts = []
+        for i, citation in enumerate(citations):
+            citation_dict = {
+                "id": i + 1,
+                "text": citation.text,
+                "source_name": citation.source_name,
+                "source_url": citation.source_url,
+                "date_accessed": citation.date_accessed,
+                "preview": citation.original_content
+            }
+            citation_dicts.append(citation_dict)
+            
+        return citation_dicts
+
+    # --- Runnable Interface Implementation ---
     
+    def invoke(self, input_data: RAGInput, config: Optional[RunnableConfig] = None) -> Dict[str, Any]:
+        """
+        Invoke the RAG chain with the given input data.
+        
+        Args:
+            input_data: RAGInput model containing the query and optional session_id
+            config: Optional configuration for the runnable
+            
+        Returns:
+            Dictionary containing the response and related information
+        """
+        # Extract query and session_id from input
+        query = input_data.query
+        session_id = input_data.session_id
+        
+        if not query.strip():
+            return {
+                "query": query,
+                "response": "Please provide a valid query.",
+                "sources": [],
+                "citations": [],
+                "structured_data": {},
+                "session_id": session_id or str(uuid4())
+            }
+            
+        # Get or create conversation state
+        conversation = self.memory_manager.get_conversation_state(session_id)
+        if session_id is None:
+            session_id = conversation.session_id
+            
+        # Get conversation history
+        history = conversation.get_messages()
+        
+        # Process using core logic
+        result = self._rag_core_logic({"query": query, "history": history, "session_id": session_id})
+        
+        # Update conversation with new messages
+        conversation.add_user_message(query)
+        conversation.add_ai_message(result["response"])
+        
+        # Save conversation state
+        self.memory_manager.save_conversation_state(conversation)
+        
+        # Return formatted result
+        return {
+            "query": query,
+            "response": result["response"],
+            "sources": result["sources"],
+            "citations": result["citations"],
+            "structured_data": result["structured_data"],
+            "session_id": session_id
+        }
+    
+        # Update conversation with new messages
+        conversation.add_user_message(query)
+        conversation.add_ai_message(result["response"])
+        
+        # Save conversation state
+        self.memory_manager.save_conversation_state(conversation)
+        
+        # Return formatted result
+        return {
+            "query": query,
+            "response": result["response"],
+            "sources": result["sources"],
+            "citations": result["citations"],
+            "structured_data": result["structured_data"],
+            "session_id": session_id
+        }
+    
+    # --- Core Logic ---
+
+    def _rag_core_logic(self, input_dict: Dict[str, Any]) -> Dict[str, Any]:
+        query = input_dict["query"]
+        history = input_dict.get("history", [])
+        session_id = input_dict.get("session_id", str(uuid4()))
+
+        # Filter history to prevent context window overflow
+        filtered_history = self.memory_manager.filter_messages(history)
+
+        # Retrieve documents
+        try:
+            retrieved_docs = self.retriever.invoke(query)
+        except Exception as e:
+            print(f"Error during retrieval in core logic: {e}")
+            retrieved_docs = []
+
+        # Format context
+        context = self._format_docs(retrieved_docs)
+
+        # Generate response using LLM with filtered history
+        prompt_with_values = NUTRITION_BASE_PROMPT.format_prompt(
+            context=context,
+            question=query
+        )
+        
+        # Combine filtered history with current prompt for LLM
+        messages_for_llm = filtered_history + [prompt_with_values.to_messages()[0]]
+
+        # Generate response with the LLM
+        llm_response = self.llm.invoke(messages_for_llm)
+        response_text = llm_response.content if hasattr(llm_response, 'content') else str(llm_response)
+        
+        # Extract structured data (placeholder for now)
+        structured_data = self.extract_nutrition_data(retrieved_docs)
+        
+        # Format sources for citation
+        sources = self.format_sources(retrieved_docs)
+        
+        # Generate citations
+        citations = self.generate_citations(retrieved_docs)
+        
+        # Return the complete result
+        return {
+            "query": query,
+            "response": response_text,
+            "sources": sources,
+            "citations": citations,
+            "structured_data": structured_data,
+            "session_id": session_id
+        }
+
     def as_runnable(self) -> Runnable:
         """Convert this chain to a Runnable object."""
-        return RunnableLambda(self.invoke)
-
-# Example usage (for testing, not part of the class):
-# if __name__ == "__main__":
-#     from langchain_community.retrievers import BM25Retriever
-#     from langchain_openai import ChatOpenAI
-#
+        return self
 #     # Dummy data and components for testing
 #     docs = [Document(page_content="Doc 1 content"), Document(page_content="Doc 2 content")]
 #     dummy_retriever = BM25Retriever.from_documents(docs)

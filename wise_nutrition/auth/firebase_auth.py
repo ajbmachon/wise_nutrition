@@ -5,7 +5,7 @@ import os
 import json
 from typing import Dict, Any, Optional
 from datetime import datetime, timedelta
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import firebase_admin
 from firebase_admin import auth, credentials
@@ -14,13 +14,19 @@ from fastapi.security import OAuth2PasswordBearer
 
 from wise_nutrition.models.user import UserCreate, UserResponse, UserInDB, Token, TokenData, UserLogin
 
-# Initialize Firebase with credentials
-cred_path = os.path.join(os.getcwd(), "firebase_credentials.json")
-if os.path.exists(cred_path):
-    cred = credentials.Certificate(cred_path)
-    firebase_app = firebase_admin.initialize_app(cred)
+# Check if we're in development mode
+DEV_MODE = os.environ.get("WISE_NUTRITION_DEV_MODE", "true").lower() == "true"
+
+# Initialize Firebase with credentials if not in dev mode
+if not DEV_MODE:
+    cred_path = os.path.join(os.getcwd(), "firebase_credentials.json")
+    if os.path.exists(cred_path):
+        cred = credentials.Certificate(cred_path)
+        firebase_app = firebase_admin.initialize_app(cred)
+    else:
+        raise FileNotFoundError(f"Firebase credentials file not found at {cred_path}")
 else:
-    raise FileNotFoundError(f"Firebase credentials file not found at {cred_path}")
+    print("⚠️ Running in DEVELOPMENT MODE - using mock authentication ⚠️")
 
 # OAuth2 scheme for token authentication
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/v1/auth/login")
@@ -374,6 +380,24 @@ def get_firebase_auth_manager():
     """Dependency to get the Firebase Auth Manager."""
     return firebase_auth_manager
 
-# Auth dependencies
-get_current_user = FirebaseAuthManager.get_current_user
-get_current_active_user = FirebaseAuthManager.get_current_active_user 
+# Create a mock user for development
+async def get_mock_user() -> UserResponse:
+    """Return a mock user for development purposes."""
+    return UserResponse(
+        id=uuid4(),
+        email="dev@example.com",
+        full_name="Development User",
+        is_active=True,
+        created_at=datetime.now(),
+        last_login=datetime.now()
+    )
+
+# Auth dependencies - use mock in dev mode
+if DEV_MODE:
+    # In development mode, always return the mock user
+    get_current_user = get_mock_user
+    get_current_active_user = get_mock_user
+else:
+    # In production, use the real Firebase authentication
+    get_current_user = FirebaseAuthManager.get_current_user
+    get_current_active_user = FirebaseAuthManager.get_current_active_user

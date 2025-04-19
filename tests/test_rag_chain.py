@@ -6,6 +6,7 @@ import pytest
 from unittest.mock import patch, MagicMock
 
 from wise_nutrition.rag_chain import NutritionRAGChain
+from wise_nutrition.memory import ConversationMemoryManager
 from langgraph.checkpoint.memory import MemorySaver
 
 
@@ -19,23 +20,46 @@ class TestNutritionRAGChain:
         self.mock_retriever = MagicMock()
         self.mock_llm = MagicMock()
         self.mock_memory_saver = MagicMock(spec=MemorySaver)
+        self.mock_memory_manager = MagicMock(spec=ConversationMemoryManager)
+        # Configure the memory manager to return our mock memory saver
+        self.mock_memory_manager.get_memory_saver.return_value = self.mock_memory_saver
         
         self.rag_chain = NutritionRAGChain(
             retriever=self.mock_retriever,
             llm=self.mock_llm,
-            memory_saver=self.mock_memory_saver
+            memory_manager=self.mock_memory_manager
         )
     
     def test_init(self):
         """Test initialization with custom parameters."""
+        # Create a memory manager for testing
+        memory_manager = ConversationMemoryManager()
+        
         chain = NutritionRAGChain(
             retriever=self.mock_retriever,
+            llm=self.mock_llm,
+            memory_manager=memory_manager,
             model_name="gpt-4"
         )
-        # Test initialization here
+        assert chain.model_name == "gpt-4"
+        assert chain.retriever == self.mock_retriever
+        assert chain.llm == self.mock_llm
+        assert chain.memory_manager == memory_manager
     
     def test_format_docs(self):
         """Test formatting documents."""
+        # Create test documents
+        from langchain_core.documents import Document
+        docs = [
+            Document(page_content="Test content 1"),
+            Document(page_content="Test content 2")
+        ]
+        
+        formatted = self.rag_chain._format_docs(docs)
+        expected = "Test content 1\n\nTest content 2"
+        assert formatted == expected
+        
+        # Test empty docs
         # Test _format_docs here
     
     def test_get_memory_key(self):

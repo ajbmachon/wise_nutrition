@@ -33,7 +33,7 @@ def test_rag_playground_endpoint():
 )
 def test_rag_invoke_endpoint(test_input, monkeypatch):
     """
-    Test the invoke endpoint for the RAG chain.
+    Test the public endpoint for the RAG chain.
     
     This test mocks the NutritionRAGChain to avoid actual API calls.
     """
@@ -51,8 +51,8 @@ def test_rag_invoke_endpoint(test_input, monkeypatch):
     from wise_nutrition.rag_chain import NutritionRAGChain
     monkeypatch.setattr(NutritionRAGChain, "invoke", mock_invoke)
     
-    # Call the endpoint with the test input
-    response = client.post("/api/v1/nutrition_rag_chain/invoke", json=test_input)
+    # Call the public endpoint with the test input
+    response = client.post("/api/v1/nutrition_rag_chain/public", json=test_input)
     
     # Check the response
     assert response.status_code == 200

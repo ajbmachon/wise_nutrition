@@ -7,8 +7,12 @@ from typing import Dict, List, Optional
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-# Import routers
-from wise_nutrition.routers import health, rag, auth
+# Import routers directly
+from wise_nutrition.routers.health import router as health_router
+from wise_nutrition.routers.rag import router as rag_router
+from wise_nutrition.routers.auth import router as auth_router
+from wise_nutrition.routers.query_reformulation import router as query_reformulation_router
+from wise_nutrition.routers.recommendations import router as recommendations_router
 
 # --- FastAPI App Setup --- #
 app = FastAPI(
@@ -27,11 +31,13 @@ app.add_middleware(
 )
 
 # --- Include Routers --- #
-app.include_router(health.router, tags=["Health"])
-# Include the RAG router with a prefix
-app.include_router(rag.router, prefix="/api/v1", tags=["RAG Chain"])
-# Include the auth router with a prefix
-app.include_router(auth.router, prefix="/api/v1", tags=["Authentication"])
+app.include_router(health_router, tags=["Health"])
+# Include all API routers - no prefix here since they already have /api/v1 prefix
+app.include_router(rag_router, tags=["RAG Chain"])
+app.include_router(auth_router, tags=["Authentication"])
+app.include_router(query_reformulation_router, tags=["Query Reformulation"])
+# Include the recommendations router
+app.include_router(recommendations_router, prefix="/api/v1", tags=["Recommendations"])
 
 # --- Root Endpoint --- #
 @app.get("/")
@@ -41,7 +47,9 @@ async def root():
         "message": "Welcome to the Wise Nutrition API.",
         "docs": "/docs",
         "rag_playground": "/api/v1/nutrition_rag_chain/playground",
-        "auth": "/api/v1/auth"
+        "auth": "/api/v1/auth",
+        "query_reformulation": "/api/v1/query/reformulate",
+        "recommendations": "/api/v1/recommendations"
     }
 
 # --- Custom Exception Handlers (Example Placeholder) --- #
@@ -76,4 +84,4 @@ async def root():
 if __name__ == "__main__":
     import uvicorn
     # Use reload=True for development
-    uvicorn.run("wise_nutrition.api:app", host="0.0.0.0", port=8002, reload=True) 
+    uvicorn.run("wise_nutrition.api:app", host="0.0.0.0", port=8000, reload=True) 

@@ -9,11 +9,17 @@ from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_community.vectorstores import Chroma
 from langchain_core.runnables import Runnable, RunnablePassthrough
 from langchain_core.documents import Document
+from langchain_core.retrievers import BaseRetriever
 
 # Import application components
 from wise_nutrition.utils.config import Config
 from wise_nutrition.rag_chain import NutritionRAGChain
 from wise_nutrition.memory import ConversationMemoryManager
+from wise_nutrition.query_reformulation import QueryReformulator
+from wise_nutrition.enhanced_retriever import EnhancedNutritionRetriever
+from wise_nutrition.retriever import NutritionRetriever
+from wise_nutrition.reranker import DocumentReRanker, ReRankingConfig
+from wise_nutrition.citation_generator import CitationGenerator
 from langgraph.checkpoint.memory import MemorySaver # Default saver
 # TODO: Add import for persistent saver like SqliteSaver when implemented
 
@@ -62,8 +68,12 @@ def get_llm() -> Runnable:
         # Returning Passthrough as a fallback might hide issues.
         return RunnablePassthrough() # Consider implications of fallback
 
-def get_retriever() -> Runnable:
-    """Dependency to get the retriever instance."""
+def get_base_retriever() -> BaseRetriever:
+    """
+    Get the base vector store retriever without any enhancements.
+    
+    This is used as a dependency for building enhanced retrievers.
+    """
     api_key = config.openai_api_key
     if not api_key:
         print("Warning: OPENAI_API_KEY not found for retriever embeddings.")
@@ -177,14 +187,148 @@ def get_retriever() -> Runnable:
         print("Created fallback retriever with basic nutrition information")
         return fallback_db.as_retriever()
 
+def get_nutrition_retriever(
+    base_retriever: Annotated[BaseRetriever, Depends(get_base_retriever)]
+) -> NutritionRetriever:
+    """
+    Dependency to get the standard NutritionRetriever instance.
+    
+    This is the standard retriever without query reformulation.
+    """
+    return NutritionRetriever(
+        base_retriever=base_retriever,
+        k=4
+    )
+
+def get_reranking_retriever(
+    base_retriever: Annotated[BaseRetriever, Depends(get_base_retriever)]
+) -> NutritionRetriever:
+    """
+    Dependency to get a retriever with post-retrieval reranking capabilities.
+    
+    This retriever includes a document reranker to improve the quality
+    of results using multiple relevance metrics.
+    """
+    # Create reranking config with custom weights if needed
+    reranking_config = ReRankingConfig(
+        semantic_weight=0.6,
+        freshness_weight=0.1,
+        authority_weight=0.15,
+        term_proximity_weight=0.15,
+        nutrient_match_bonus=0.2,
+        top_n_to_rerank=20
+    )
+    
+    # Create retriever with reranking enabled
+    return NutritionRetriever.with_reranker(
+        base_retriever=base_retriever,
+        k=4,
+        reranking_config=reranking_config
+    )
+
+def get_query_reformulator(
+    llm: Annotated[Runnable, Depends(get_llm)]
+) -> QueryReformulator:
+    """Dependency to get the query reformulator for query enhancement."""
+    return QueryReformulator(
+        llm=llm,
+        include_original=True
+    )
+
+def get_enhanced_retriever(
+    base_retriever: Annotated[BaseRetriever, Depends(get_base_retriever)],
+    llm: Annotated[Runnable, Depends(get_llm)]
+) -> EnhancedNutritionRetriever:
+    """
+    Dependency to get the enhanced retriever with query reformulation.
+    
+    This retriever uses LLM-powered query reformulation to generate multiple
+    perspectives on the original query for improved retrieval accuracy.
+    """
+    return EnhancedNutritionRetriever.from_llm(
+        base_retriever=base_retriever,
+        llm=llm,
+        k=4,
+        max_queries=4,
+        include_original=True
+    )
+
+def get_citation_generator() -> CitationGenerator:
+    """Dependency to get the citation generator instance."""
+    return CitationGenerator(default_style="mla")
+
+def get_enhanced_reranking_retriever(
+    base_retriever: Annotated[BaseRetriever, Depends(get_base_retriever)],
+    llm: Annotated[Runnable, Depends(get_llm)]
+) -> Runnable:
+    """
+    Dependency to get an enhanced retriever with both query reformulation and reranking.
+    
+    This retriever combines the improved retrieval capabilities of query reformulation
+    with post-retrieval reranking for optimal results.
+    """
+    # Create reranking config
+    reranking_config = ReRankingConfig(
+        top_n_to_rerank=20  # Rerank more results since we'll have more from multiple queries
+    )
+    
+    # Create reranker
+    reranker = DocumentReRanker(config=reranking_config)
+    
+    # Create enhanced retriever with reranking capabilities
+    retriever = EnhancedNutritionRetriever.from_llm(
+        base_retriever=base_retriever,
+        llm=llm,
+        k=8,  # Get more initial results to enable better reranking
+        max_queries=4,
+        include_original=True
+    )
+    
+    # Add reranker
+    retriever.reranker = reranker
+    retriever.use_reranking = True
+    
+    return retriever.as_runnable()
+
+def get_retriever() -> Runnable:
+    """
+    Dependency to get the retriever instance.
+    
+    By default, this returns the enhanced retriever with query reformulation.
+    Change this function to return a different retriever implementation if needed.
+    """
+    # We're using dependency injection to get a fully configured enhanced retriever
+    # Use Depends directly in this function to avoid circular dependencies
+    llm = get_llm()
+    base_retriever = get_base_retriever()
+    
+    # Return the enhanced retriever with reranking for maximum quality
+    enhanced_retriever = EnhancedNutritionRetriever.from_llm(
+        base_retriever=base_retriever,
+        llm=llm,
+        k=4,
+        max_queries=4,
+        include_original=True
+    )
+    
+    # Add reranking capabilities
+    reranking_config = ReRankingConfig()
+    reranker = DocumentReRanker(config=reranking_config)
+    enhanced_retriever.reranker = reranker
+    enhanced_retriever.use_reranking = True
+    
+    return enhanced_retriever.as_runnable()
+
 def get_rag_chain(
     retriever: Annotated[Runnable, Depends(get_retriever)],
     llm: Annotated[Runnable, Depends(get_llm)],
-    memory_manager: Annotated[ConversationMemoryManager, Depends(get_memory_manager)]
+    memory_manager: Annotated[ConversationMemoryManager, Depends(get_memory_manager)],
+    citation_generator: Annotated[CitationGenerator, Depends(get_citation_generator)]
 ) -> NutritionRAGChain:
     """Dependency to create and return the NutritionRAGChain instance."""
     return NutritionRAGChain(
         retriever=retriever,
         llm=llm,
-        memory_manager=memory_manager
+        memory_manager=memory_manager,
+        citation_generator=citation_generator
     ) 

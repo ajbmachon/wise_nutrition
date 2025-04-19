@@ -131,7 +131,7 @@ class TestChromaEmbeddingManager:
         # Mock retriever
         mock_retriever = MagicMock()
         mock_docs = [Document(page_content="Result 1"), Document(page_content="Result 2")]
-        mock_retriever.get_relevant_documents.return_value = mock_docs
+        mock_retriever.invoke.return_value = mock_docs
         
         # Mock get_retriever
         with patch.object(self.embedding_manager, 'get_retriever', return_value=mock_retriever):
@@ -139,7 +139,7 @@ class TestChromaEmbeddingManager:
             results = await self.embedding_manager.search_similar("test query", k=3)
             
             # Check that retriever was used correctly
-            mock_retriever.get_relevant_documents.assert_called_once_with("test query")
+            mock_retriever.invoke.assert_called_once_with("test query")
             assert results == mock_docs
     
     @pytest.mark.asyncio
