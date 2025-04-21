@@ -2,7 +2,7 @@
 name = "wise-nutrition"
 version = "0.1.0"
 description = "AI-powered application for nutrition knowledge and personalized recipe generation"
-authors = ["Your Name <your.email@example.com>"]
+authors = ["Andre Machon ajbmachon2@gmail.com"]
 readme = "README.md"
 packages = [{include = "wise_nutrition"}]
 
@@ -14,6 +14,10 @@ openai = "^1.12.0"
 typer = {extras = ["all"], version = "^0.9.0"}
 rich = "^13.6.0"
 httpx = "^0.27.0"
+supabase = "^2.3.0"
+vecs = "^0.4.0"
+python-dotenv = "^1.0.0"
+fastapi = "^0.115.12"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.4.0"

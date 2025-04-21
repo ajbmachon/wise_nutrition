@@ -6,25 +6,25 @@ This document tracks the current tasks, backlog items, and milestones for the Wi
 
 ### Project Setup
 - [x] Create AI agent with Pydantic AI (2025-04-21)
-- [ ] Initialize git repository and set up GitHub project
-- [ ] Create conda/virtual environment with base dependencies
+- [x] Initialize git repository and set up GitHub project
+- [x] Create virtual environment with base dependencies
 - [ ] Setup Docker Compose for local development
 - [ ] Configure linting and formatting tools
 - [ ] Set up CI workflow for automated testing
 
 ### Infrastructure
-- [ ] Create Supabase project
-- [ ] Configure pgvector extension
+- [x] Create Supabase project
+- [x] Configure pgvector extension
 - [ ] Set up authentication system
 - [ ] Implement row-level security policies
-- [ ] Configure vector indexes for optimal performance
+- [x] Configure vector indexes for optimal performance
 
 ### Data Preparation
 - [x] Create document processing pipeline (2025-04-21)
 - [x] Implement chunking strategy for retrieval (2025-04-21)
 - [ ] Collect and organize nutrition information sources
-- [ ] Build embedding generation system
-- [ ] Develop data ingestion script
+- [x] Build embedding generation system
+- [x] Develop data ingestion script
 
 ### RAG System Development
 - [x] Define agent architecture and components (2025-04-21)
@@ -35,9 +35,9 @@ This document tracks the current tasks, backlog items, and milestones for the Wi
 - [x] Create evaluation metrics and testing framework (2025-04-21)
 
 ### Backend API
-- [ ] Set up FastAPI project structure
-- [ ] Implement Pydantic AI orchestration patterns
-- [ ] Build chat endpoint and logic
+- [x] Set up FastAPI project structure
+- [x] Implement Pydantic AI orchestration patterns
+- [x] Build chat endpoint and logic
 - [ ] Create recipe generation endpoint
 - [ ] Develop user profile management
 - [ ] Add questionnaire processing endpoint
@@ -116,7 +116,7 @@ This document tracks the current tasks, backlog items, and milestones for the Wi
 - Need to research best practices for citation generation in RAG systems
 
 ## Discovered During Work
-- [ ] Implement the production-ready vector store with Supabase pgvector
+- [x] Implement the production-ready vector store with Supabase pgvector (2025-04-21)
 - [ ] Create a more sophisticated search algorithm with hybrid search
 - [ ] Add nutritional profile for users
 
@@ -125,6 +125,8 @@ This document tracks the current tasks, backlog items, and milestones for the Wi
 - [x] Implement basic retrieval mechanism for demonstration (2025-04-21)
 - [x] Create unit tests for retrieval and agent components (2025-04-21)
 - [x] Build interactive CLI for querying the nutrition agent (2025-04-21)
+- [x] Implement Supabase pgvector integration for production-ready vector storage (2025-04-21)
+- [x] Create FastAPI endpoints for data ingestion and querying (2025-04-21)
 
 ## Usage Instructions
 

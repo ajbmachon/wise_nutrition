@@ -2,6 +2,7 @@
 
 from typing import List, Optional, Protocol, Dict, Any, Union
 import json
+import logging
 from pathlib import Path
 
 from pydantic import BaseModel
@@ -12,6 +13,9 @@ from wise_nutrition.models import (
     NutritionTheory,
     RetrievedContext,
 )
+
+# Set up logging
+logging = logging.getLogger(__name__)
 
 
 class VectorStore(Protocol):
@@ -29,6 +33,14 @@ class VectorStore(Protocol):
             
         Returns:
             List of matching documents with similarity scores
+        """
+        ...
+        
+    def ingest_data(self, data_dir: Optional[Path] = None) -> None:
+        """Ingest data from files into the vector store.
+        
+        Args:
+            data_dir: Directory containing data files
         """
         ...
 
@@ -156,6 +168,14 @@ class RetrievalService:
     
     def __init__(self, vector_store: VectorStore):
         """Initialize with a vector store.
+        
+        Args:
+            vector_store: Vector store implementation
+        """
+        self.vector_store = vector_store
+        
+    def set_vector_store(self, vector_store: VectorStore) -> None:
+        """Set a new vector store implementation.
         
         Args:
             vector_store: Vector store implementation
